@@ -1474,6 +1474,8 @@ JSAPI_FUNC(unit_getParent)
 	return JS_TRUE;
 }
 
+UnitAny* GetMercByUnit(UnitAny* pUnit);
+
 // Works only on players sinces monsters _CANT_ have mercs!
 JSAPI_FUNC(unit_getMerc)
 {	
@@ -1490,26 +1492,57 @@ JSAPI_FUNC(unit_getMerc)
 	if(!pUnit || pUnit->dwType != UNIT_PLAYER)
 		return JS_TRUE;
 	
-	for(UnitAny* pMerc = D2CLIENT_GetMercUnit(); pMerc; pMerc = pMerc->pRoomNext) {
-		if (D2CLIENT_GetMonsterOwner(pMerc->dwUnitId) == pUnit->dwUnitId) {
-			myUnit* pmyUnit = new myUnit;
+	UnitAny* pMerc = GetMercByUnit(pUnit);
 
-			pmyUnit->_dwPrivateType = PRIVATE_UNIT;
-			pmyUnit->dwUnitId = pMerc->dwUnitId;
-			pmyUnit->dwClassId = pMerc->dwTxtFileNo;
-			pmyUnit->dwMode = NULL;
-			pmyUnit->dwType = UNIT_MONSTER;
-			pmyUnit->szName[0] = NULL;
+	if (pMerc) {
+		myUnit* pmyUnit = new myUnit;
 
-			JSObject *jsunit = BuildObject(cx, &unit_class_ex.base, unit_methods, unit_props, pmyUnit);
-			if (!jsunit)
-				return JS_TRUE;
+		pmyUnit->_dwPrivateType = PRIVATE_UNIT;
+		pmyUnit->dwUnitId = pMerc->dwUnitId;
+		pmyUnit->dwClassId = pMerc->dwTxtFileNo;
+		pmyUnit->dwMode = NULL;
+		pmyUnit->dwType = UNIT_MONSTER;
+		pmyUnit->szName[0] = NULL;
 
-			*rval = OBJECT_TO_JSVAL(jsunit);	
+		JSObject *jsunit = BuildObject(cx, &unit_class_ex.base, unit_methods, unit_props, pmyUnit);
+		if (!jsunit)
 			return JS_TRUE;
-		}
+
+		*rval = OBJECT_TO_JSVAL(jsunit);	
+		return JS_TRUE;
 	}
+	
 	return JS_TRUE;
+}
+
+JSAPI_FUNC(unit_getMercHP)
+{
+	if(!WaitForGameReady())
+		THROW_WARNING(cx, "Game not ready");
+
+	myUnit* lpUnit = (myUnit*)JS_GetPrivate(cx, obj);
+
+	if(!lpUnit ||(lpUnit->_dwPrivateType & PRIVATE_UNIT) != PRIVATE_UNIT)
+		return JS_TRUE;
+	
+	UnitAny* pUnit = D2CLIENT_FindUnit(lpUnit->dwUnitId, lpUnit->dwType);
+	
+	if(!pUnit || pUnit->dwType != UNIT_PLAYER)
+		return JS_TRUE;
+	
+	UnitAny* pMerc = GetMercByUnit(pUnit);
+
+	if (pMerc)
+		*rval = (pMerc->dwMode == 12 ? JSVAL_ZERO : INT_TO_JSVAL(D2CLIENT_GetUnitHPPercent(pMerc->dwUnitId)));
+	return JS_TRUE;
+}
+
+UnitAny* GetMercByUnit(UnitAny* pUnit)
+{
+	for(UnitAny* pMerc = D2CLIENT_GetMercUnit(); pMerc; pMerc = pMerc->pRoomNext)
+		if (D2CLIENT_GetMonsterOwner(pMerc->dwUnitId) == pUnit->dwUnitId)
+			return pMerc;
+	return NULL;
 }
 
 // unit.setSkill( int skillId OR String skillName, int hand [, int itemGlobalId] );
