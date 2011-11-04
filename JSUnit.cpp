@@ -369,7 +369,7 @@ JSAPI_PROP(unit_getProperty)
 				*vp = INT_TO_JSVAL(pUnit->pItemData->BodyLocation);
 			break;
 		case UNIT_OWNER:
-			*vp = INT_TO_JSVAL(pUnit->dwOwnerId);
+			JS_NewNumberValue(cx, (jsdouble)pUnit->dwOwnerId, vp);
 			break;
 		case UNIT_OWNERTYPE:
 			*vp = INT_TO_JSVAL(pUnit->dwOwnerType);
@@ -776,6 +776,8 @@ JSAPI_FUNC(unit_getStat)
 		*rval = INT_TO_JSVAL(D2COMMON_GetUnitStat(pUnit, nStat, nSubIndex)>>8);
 	else if(nStat == 13 || nStat == 29 || nStat == 30)
 		JS_NewNumberValue(cx, (unsigned int)D2COMMON_GetUnitStat(pUnit, nStat, nSubIndex), rval);
+	//else if (nStat == 36 || nStat == 37 || nStat == 39|| nStat == 41 || nStat == 43|| nStat == 45) // negitive resistance
+	//	*rval = INT_TO_JSVAL(D2COMMON_GetUnitStat(pUnit, nStat, nSubIndex));
 	else if(nStat == 92)
 		*rval = INT_TO_JSVAL(D2COMMON_GetItemLevelRequirement(pUnit, D2CLIENT_GetPlayerUnit()));
 	else if(nStat == -1)
@@ -1482,82 +1484,31 @@ JSAPI_FUNC(unit_getMerc)
 
 	if(!lpUnit ||(lpUnit->_dwPrivateType & PRIVATE_UNIT) != PRIVATE_UNIT)
 		return JS_TRUE;
-
+	
 	UnitAny* pUnit = D2CLIENT_FindUnit(lpUnit->dwUnitId, lpUnit->dwType);
-
+	
 	if(!pUnit || pUnit->dwType != UNIT_PLAYER)
 		return JS_TRUE;
+	
+	for(UnitAny* pMerc = D2CLIENT_GetMercUnit(); pMerc; pMerc = pMerc->pRoomNext) {
+		if (D2CLIENT_GetMonsterOwner(pMerc->dwUnitId) == pUnit->dwUnitId) {
+			myUnit* pmyUnit = new myUnit;
 
-	if(argc > 0 && JSVAL_IS_INT(argv[0]) && JSVAL_TO_INT(argv[0]) == 1)
-	{
-		UnitAny* pMerc = NULL;
-		if(D2CLIENT_GetPlayerUnit()->pAct)
-		{
-			for(Room1* pRoom = D2CLIENT_GetPlayerUnit()->pAct->pRoom1; pRoom; pRoom = pRoom->pRoomNext)
-			{
-				for(UnitAny* pUnit = pRoom->pUnitFirst; pUnit; pUnit = pUnit->pRoomNext)
-				{
-					if(pUnit->dwType != UNIT_MONSTER)
-						continue;
+			pmyUnit->_dwPrivateType = PRIVATE_UNIT;
+			pmyUnit->dwUnitId = pMerc->dwUnitId;
+			pmyUnit->dwClassId = pMerc->dwTxtFileNo;
+			pmyUnit->dwMode = NULL;
+			pmyUnit->dwType = UNIT_MONSTER;
+			pmyUnit->szName[0] = NULL;
 
-					if(pUnit->dwTxtFileNo == MERC_A1 || pUnit->dwTxtFileNo == MERC_A2 || pUnit->dwTxtFileNo == MERC_A3 || pUnit->dwTxtFileNo == MERC_A5)
-					{
-						if(D2CLIENT_GetMonsterOwner(pUnit->dwUnitId) == D2CLIENT_GetPlayerUnit()->dwUnitId)
-						{
-							*rval = JSVAL_TRUE;
-							return JS_TRUE;
-						}
-					}
-				}
-			}
-		}
+			JSObject *jsunit = BuildObject(cx, &unit_class_ex.base, unit_methods, unit_props, pmyUnit);
+			if (!jsunit)
+				return JS_TRUE;
 
-		if(pMerc)
-			*rval = JSVAL_TRUE;
-		else if(*p_D2CLIENT_MercStrIndex == 0xFFFF)
-			*rval = JSVAL_FALSE;
-		else
-			*rval = JSVAL_NULL;
-
-		return JS_TRUE;
-	}
-
-	if(D2CLIENT_GetPlayerUnit() && D2CLIENT_GetPlayerUnit()->pAct)
-	{
-		for(Room1* pRoom = D2CLIENT_GetPlayerUnit()->pAct->pRoom1; pRoom; pRoom = pRoom->pRoomNext)
-		{
-			for(UnitAny* pMonster = pRoom->pUnitFirst; pMonster; pMonster = pMonster->pRoomNext)
-			{
-				if(pMonster->dwType == UNIT_MONSTER)
-				{
-					if(pMonster->dwTxtFileNo == MERC_A1 || pMonster->dwTxtFileNo == MERC_A2 || pMonster->dwTxtFileNo == MERC_A3 || pMonster->dwTxtFileNo == MERC_A5)
-					{
-						if(D2CLIENT_GetMonsterOwner(pMonster->dwUnitId) == pUnit->dwUnitId)
-						{
-							myUnit* pmyUnit = new myUnit;
-
-							if(!pmyUnit)
-								return JS_TRUE;
-
-							pmyUnit->_dwPrivateType = PRIVATE_UNIT;
-							pmyUnit->dwUnitId = pMonster->dwUnitId;
-							pmyUnit->dwClassId = pMonster->dwTxtFileNo;
-							pmyUnit->dwMode = NULL;
-							pmyUnit->dwType = UNIT_MONSTER;
-							pmyUnit->szName[0] = NULL;
-
-							JSObject *jsunit = BuildObject(cx, &unit_class_ex.base, unit_methods, unit_props, pmyUnit);
-							if (!jsunit)
-								return JS_TRUE;
-
-							*rval = OBJECT_TO_JSVAL(jsunit);								
-						}
-					}
-				}
-			}
+			*rval = OBJECT_TO_JSVAL(jsunit);	
+			return JS_TRUE;
 		}
 	}
-    
 	return JS_TRUE;
 }
 

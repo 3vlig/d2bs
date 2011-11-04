@@ -32,6 +32,7 @@ class ScriptEngine
 	static JSRuntime* runtime;
 	static JSContext* context;
 	static ScriptMap scripts;
+	static Script* console;
 	static EngineState state;
 	static CRITICAL_SECTION lock;
 
@@ -45,7 +46,7 @@ public:
 	static void FlushCache(void);
 
 	static Script* CompileFile(const char* file, ScriptState state, bool recompile = false);
-	static Script* CompileCommand(const char* command);
+	static void RunCommand(const char* command);
 	static void DisposeScript(Script* script);
 
 	static void ForEachScript(ScriptCallback callback, void* argv, uint argc);
@@ -60,6 +61,7 @@ public:
 							 JSFunctionSpec* methods, JSPropertySpec* props,
 							 JSFunctionSpec* s_methods, JSPropertySpec* s_props);
 	static void DefineConstant(JSContext* context, JSObject* globalObject, const char* name, int value);
+	static void UpdateConsole();
 
 	friend JSBool gcCallback(JSContext* cx, JSGCStatus status);
 };

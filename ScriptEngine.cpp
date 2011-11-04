@@ -13,7 +13,7 @@
 #include "D2Ptrs.h"
 
 using namespace std;
-
+Script* ScriptEngine::console = NULL;
 JSRuntime* ScriptEngine::runtime = NULL;
 ScriptMap ScriptEngine::scripts = ScriptMap();
 EngineState ScriptEngine::state = Stopped;
@@ -65,30 +65,20 @@ Script* ScriptEngine::CompileFile(const char* file, ScriptState state, bool reco
 	}
 }
 
-Script* ScriptEngine::CompileCommand(const char* command)
+void ScriptEngine::RunCommand(const char* command)
 {
 	if(GetState() != Running)
-		return NULL;
+		return;
 	try
 	{
 		EnterCriticalSection(&lock);
-		if(!Vars.bDisableCache)
-		{
-			if(scripts.count("Command Line") > 0)
-			{
-				DisposeScript(scripts["Command Line"]);
-			}
-		}
-		Script* script = new Script(command, Command);
-		scripts["Command Line"] = script;
+		console->RunCommand(command);
 		LeaveCriticalSection(&lock);
-		return script;
 	}
 	catch(std::exception e)
 	{
 		LeaveCriticalSection(&lock);
 		Print(const_cast<char*>(e.what()));
-		return NULL;
 	}
 }
 
@@ -149,6 +139,7 @@ BOOL ScriptEngine::Startup(void)
 		JS_SetContextCallback(runtime, contextCallback);
 		JS_SetGCCallbackRT(runtime, gcCallback);
 
+		console = new Script("", Command);
 		state = Running;
 		LeaveCriticalSection(&lock);
 	}
@@ -163,6 +154,7 @@ void ScriptEngine::Shutdown(void)
 		EnterCriticalSection(&lock);
 		state = Stopping;
 		StopAll(true);
+		console->Stop(true, true);
 
 		// clear all scripts now that they're stopped
 		ForEachScript(::DisposeScript, NULL, 0);
@@ -196,6 +188,10 @@ void ScriptEngine::StopAll(bool forceStop)
 	LeaveCriticalSection(&lock);
 }
 
+void ScriptEngine::UpdateConsole()
+{
+	console->UpdatePlayerGid();
+}
 void ScriptEngine::FlushCache(void)
 {
 	if(GetState() != Running)

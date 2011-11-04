@@ -58,6 +58,7 @@ DWORD WINAPI D2Thread(LPVOID lpParam)
 					Vars.dwGameTime = GetTickCount();
 					D2CLIENT_InitInventory();
 					ScriptEngine::ForEachScript(UpdatePlayerGid, NULL, 0);
+					ScriptEngine::UpdateConsole();
 
 					GameJoined();
 
@@ -121,7 +122,8 @@ DWORD __fastcall ChannelInput(wchar_t* wMsg)
 	{
 		char* szBuffer = UnicodeToAnsi(wMsg);
 		result = ProcessCommand(szBuffer+1, false);
-		D2WIN_SetControlText(*p_D2WIN_ChatInputBox, L"");
+		//FIXME
+		//D2WIN_SetControlText(*p_D2WIN_ChatInputBox, L"");
 		delete[] szBuffer;
 	}
 
@@ -133,6 +135,10 @@ DWORD __fastcall GamePacketReceived(BYTE* pPacket, DWORD dwSize)
 {
 	switch(pPacket[0])
 	{
+		case 0xAE:
+			Log("Warden activity detected! Terminating Diablo to ensure your safety:)");
+			TerminateProcess(GetCurrentProcess(), 0);
+		break;
 		case 0x15: return ReassignPlayerHandler(pPacket, dwSize);
 		case 0x26: return ChatEventHandler(pPacket, dwSize);
 		case 0x2A: return NPCTransactionHandler(pPacket, dwSize);
@@ -141,7 +147,6 @@ DWORD __fastcall GamePacketReceived(BYTE* pPacket, DWORD dwSize)
 		case 0x95: return HPMPUpdateHandler(pPacket, dwSize);
 		case 0x9C:
 		case 0x9D: return ItemActionHandler(pPacket, dwSize);
-		case 0xAE: if(!Vars.bLoadedWithCGuard) TerminateProcess(GetCurrentProcess(), 0); break;
 		case 0xA7: return DelayedStateHandler(pPacket, dwSize);
 	}
 
@@ -160,9 +165,7 @@ LONG WINAPI GameEventHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			{
 				if(pCopy->dwData == 0x1337) // 0x1337 = Execute Script
 				{
-					Script* script = ScriptEngine::CompileCommand((char*)pCopy->lpData);
-					if(script)
-						CreateThread(0, 0, ScriptThread, script, 0, 0);
+					ScriptEngine::RunCommand((char*)pCopy->lpData);
 				}
 				else if(pCopy->dwData == 0x31337) // 0x31337 = Set Profile
 				{

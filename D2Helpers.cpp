@@ -823,7 +823,7 @@ void __declspec(naked) __fastcall D2CLIENT_PlaySound(DWORD dwSoundId)
 		MOV EAX, [EAX]
 		MOV ECX, EAX
 		MOV EDX, EBX
-		CALL D2CLIENT_PlaySound_I
+		//CALL D2CLIENT_PlaySound_I
 		RETN
 	}
 }

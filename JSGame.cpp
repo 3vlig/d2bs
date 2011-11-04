@@ -875,7 +875,7 @@ JSAPI_FUNC(my_checkCollision)
 		if(!pUnit1 || !pUnit2)
 			return JS_TRUE;
 
-		*rval = INT_TO_JSVAL(D2COMMON_CheckUnitCollision(pUnit1, pUnit2, nBitMask));
+		*rval = INT_TO_JSVAL(D2COMMON_CheckUnitCollision(pUnit1, pUnit2, (WORD)nBitMask));
 		return JS_TRUE;
 	}
 
@@ -1026,9 +1026,10 @@ JSAPI_FUNC(my_getTradeInfo)
 	}
 	else if(nMode == 1)
 	{
-		char* tmp = UnicodeToAnsi((wchar_t*)(*p_D2CLIENT_RecentTradeName));
-		*rval = STRING_TO_JSVAL(JS_NewStringCopyZ(cx, tmp));
-		delete[] tmp;
+		//FIXME
+		//char* tmp = UnicodeToAnsi((wchar_t*)(*p_D2CLIENT_RecentTradeName));
+		//*rval = STRING_TO_JSVAL(JS_NewStringCopyZ(cx, tmp));
+		//delete[] tmp;
 		
 		return JS_TRUE;
 	}
